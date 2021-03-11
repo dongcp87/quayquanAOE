@@ -82,6 +82,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Stream<DocumentSnapshot> resultStream;
   Stream<QuerySnapshot> settingStream;
 
+  bool shouldSaveHistory = false;
+
   void getData() async {
     usersName = await firestoreUtils.getUsers();
     team = await firestoreUtils.getTeams();
@@ -89,9 +91,9 @@ class _MyHomePageState extends State<MyHomePage> {
     checkAccessToken = await firestoreUtils.checkAccessToken();
     textController.text = await getAccessToken();
     accessTokenOk = await firestoreUtils.checkToken(textController.text);
+    loadResult();
     setState(() {
       isLoading = false;
-      loadResult();
     });
   }
 
@@ -99,14 +101,13 @@ class _MyHomePageState extends State<MyHomePage> {
     isRequestRandomOrg = true;
     var response = await RandomOrgAPI().getRandom();
     if (response.statusCode == 200) {
+      shouldSaveHistory = true;
       responseString = response.body;
-
       firestoreUtils.saveTeam(team);
       firestoreUtils.saveResult(responseString);
       firestoreUtils.saveSession(textController.text ?? "");
-      setState(() {
-        loadResult();
-      });
+      loadResult();
+      setState(() {});
     }
     isRequestRandomOrg = false;
   }
@@ -127,6 +128,11 @@ class _MyHomePageState extends State<MyHomePage> {
         var name = allUnit[element - 1].name;
         unitRandom.add(name);
       });
+      if (shouldSaveHistory) {
+        firestoreUtils.saveHistory(team, responseString,
+            serialNumber.toString(), textController.text ?? "");
+        shouldSaveHistory = false;
+      }
     }
   }
 

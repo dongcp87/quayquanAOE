@@ -88,4 +88,17 @@ class FirestoreUtils {
         .doc("data")
         .set({"data": token});
   }
+
+  void saveHistory(
+      List<Team> team, String result, String number, String token) {
+    Map<String, dynamic> history = Map();
+    team.forEach((element) {
+      history[element.documentId] = element.name;
+      history[element.documentId + "type"] = element.type.index;
+    });
+    history["number"] = number;
+    history["result"] = result;
+    history["token"] = token;
+    FirebaseFirestore.instance.collection("history").doc(number).set(history);
+  }
 }
