@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:aoe_gmo/API/firestoreUtis.dart';
 import 'package:aoe_gmo/API/random_org.dart';
 import 'package:aoe_gmo/Model/team.dart';
@@ -12,6 +13,8 @@ import 'package:modal_progress_hud/modal_progress_hud.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'dart:html' as html; //ignore: avoid_web_libraries_in_flutter
 
 void main() {
   runApp(MyApp());
@@ -190,7 +193,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   showUnitTable();
                 },
                 child: Text(
-                  "BẢNG QUÂN",
+                  "Bảng quân",
                   style: TextStyle(fontSize: 14, color: Colors.white),
                 ),
               )
@@ -354,38 +357,23 @@ class _MyHomePageState extends State<MyHomePage> {
     return Row(
       children: [
         Spacer(),
-        // Padding(
-        //   padding: EdgeInsets.all(20),
-        //   child: OutlinedButton(
-        //     onPressed: () {
-        //       _imageFile = null;
-        //       screenshotController
-        //           .capture(delay: Duration(milliseconds: 10))
-        //           .then((Uint8List image) async {
-        //         _imageFile = image;
-        //         showDialog(
-        //           context: context,
-        //           builder: (context) => Scaffold(
-        //             appBar: AppBar(
-        //               title: Text("CAPURED SCREENSHOT"),
-        //             ),
-        //             body: Center(
-        //                 child: Column(
-        //               children: [
-        //                 _imageFile != null
-        //                     ? Image.memory(_imageFile)
-        //                     : Container(),
-        //               ],
-        //             )),
-        //           ),
-        //         );
-        //       }).catchError((onError) {
-        //         print(onError);
-        //       });
-        //     },
-        //     child: Text("CHỤP"),
-        //   ),
-        // ),
+        Padding(
+          padding: EdgeInsets.all(20),
+          child: OutlinedButton(
+            onPressed: responseString == null
+                ? null
+                : () {
+                    screenshotController
+                        .capture(delay: Duration(milliseconds: 0))
+                        .then((Uint8List image) async {
+                      saveAs(image, "QuayQuan#$serialNumber");
+                    }).catchError((onError) {
+                      print(onError);
+                    });
+                  },
+            child: Icon(Icons.camera_alt_outlined),
+          ),
+        ),
         Padding(
           padding: EdgeInsets.all(20),
           child: OutlinedButton(
@@ -507,11 +495,12 @@ class _MyHomePageState extends State<MyHomePage> {
     return Row(
       children: [
         Spacer(),
-        Container(
-          width: _screenWidth,
-          height: cellHeight * 6,
-          child: Screenshot(
-            controller: screenshotController,
+        Screenshot(
+          controller: screenshotController,
+          child: Container(
+            color: Colors.white,
+            width: _screenWidth,
+            height: cellHeight * 6,
             child: GridView.builder(
               itemCount: itemCount,
               physics: NeverScrollableScrollPhysics(),
@@ -602,7 +591,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -615,7 +604,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           style: TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                       ),
@@ -629,6 +618,23 @@ class _MyHomePageState extends State<MyHomePage> {
         Spacer(),
       ],
     );
+  }
+
+  void saveAs(List<int> bytes, String fileName) {
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.document.createElement('a') as html.AnchorElement
+      ..href = url
+      ..style.display = 'none'
+      ..download = '$fileName.png';
+    html.document.body.children.add(anchor);
+
+    // download
+    anchor.click();
+
+    // cleanup
+    html.document.body.children.remove(anchor);
+    html.Url.revokeObjectUrl(url);
   }
 }
 
