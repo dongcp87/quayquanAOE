@@ -7,11 +7,13 @@ import 'package:aoe_gmo/API/random_org.dart';
 import 'package:aoe_gmo/Model/team.dart';
 import 'package:aoe_gmo/Model/unit.dart';
 import 'package:aoe_gmo/Model/version.dart';
+import 'package:aoe_gmo/webjs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud/modal_progress_hud.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:toast/toast.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'dart:html' as html; //ignore: avoid_web_libraries_in_flutter
@@ -87,6 +89,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool shouldSaveHistory = false;
 
+  final resultController = TextEditingController();
+
   void getData() async {
     usersName = await firestoreUtils.getUsers();
     team = await firestoreUtils.getTeams();
@@ -94,6 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
     checkAccessToken = await firestoreUtils.checkAccessToken();
     textController.text = await getAccessToken();
     accessTokenOk = await firestoreUtils.checkToken(textController.text);
+    resultController.text = await firestoreUtils.getRoundResult();
     loadResult();
     setState(() {
       isLoading = false;
@@ -219,6 +224,8 @@ class _MyHomePageState extends State<MyHomePage> {
           pickButton(),
           unitGrid(),
           utilButton(),
+          roundResultDisplay(),
+          roundResultInput(),
         ],
       );
     }
@@ -366,7 +373,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     screenshotController
                         .capture(delay: Duration(milliseconds: 0))
                         .then((Uint8List image) async {
-                      saveAs(image, "QuayQuan#$serialNumber");
+                      // saveAs(image, "QuayQuan#$serialNumber");
+                      copyImgToClipBoard(image);
+                      Toast.show(
+                        "Đã copy vào clipboard",
+                        context,
+                        duration: 2,
+                        gravity: Toast.CENTER,
+                      );
                     }).catchError((onError) {
                       print(onError);
                     });
@@ -635,6 +649,65 @@ class _MyHomePageState extends State<MyHomePage> {
     // cleanup
     html.document.body.children.remove(anchor);
     html.Url.revokeObjectUrl(url);
+  }
+
+  Widget roundResultDisplay() {
+    return Row(
+      children: [
+        Spacer(),
+        Container(
+          alignment: Alignment.center,
+          color: Colors.black,
+          width: 400,
+          height: 30,
+          child: Text(
+            resultController.text,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        Spacer(),
+      ],
+    );
+  }
+
+  Widget roundResultInput() {
+    return Row(
+      children: [
+        Spacer(),
+        Container(
+          alignment: Alignment.centerLeft,
+          width: 400,
+          height: 50,
+          child: TextField(
+            controller: resultController,
+            decoration: InputDecoration(
+              hintText: "Nhập kết quả",
+              suffixIcon: IconButton(
+                onPressed: allowEdit()
+                    ? () {
+                        resultController.clear();
+                        firestoreUtils
+                            .saveRoundResult(resultController.text ?? "");
+                        setState(() {});
+                      }
+                    : null,
+                icon: Icon(Icons.clear),
+              ),
+            ),
+            onChanged: (text) {
+              firestoreUtils.saveRoundResult(text ?? "");
+              setState(() {});
+            },
+            enabled: allowEdit(),
+          ),
+        ),
+        Spacer(),
+      ],
+    );
   }
 }
 

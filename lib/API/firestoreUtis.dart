@@ -101,4 +101,23 @@ class FirestoreUtils {
     history["token"] = token;
     FirebaseFirestore.instance.collection("history").doc(number).set(history);
   }
+
+  void saveRoundResult(String result) {
+    FirebaseFirestore.instance
+        .collection("roundResult")
+        .doc("data")
+        .set({"data": result});
+  }
+
+  Future<String> getRoundResult() async {
+    String result;
+    final data = await FirebaseFirestore.instance
+        .collection("roundResult")
+        .doc("data")
+        .get(GetOptions(source: Source.server));
+    if (data != null) {
+      result = data["data"];
+    }
+    return result;
+  }
 }
