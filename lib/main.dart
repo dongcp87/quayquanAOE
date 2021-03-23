@@ -209,7 +209,15 @@ class _MyHomePageState extends State<MyHomePage> {
       body: ModalProgressHUD(
         inAsyncCall: isLoading,
         child: mainView(),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
+      floatingActionButton: allowEdit()
+          ? FloatingActionButton(
+              onPressed: () {
+                addNewMemberDialog();
+              },
+              child: Icon(Icons.person_add_alt_1_rounded),
+            )
+          : null, // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 
@@ -316,6 +324,53 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ],
         );
+      },
+    );
+  }
+
+  void addNewMemberDialog() {
+    String memberName;
+
+    bool isAllowAdd() {
+      if (memberName != null && memberName.isNotEmpty) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Text("Nhập tên"),
+            content: TextField(
+              onChanged: (var string) {
+                memberName = string;
+                setState(() {});
+              },
+            ),
+            actions: <Widget>[
+              // usually buttons at the bottom of the dialog
+              TextButton(
+                child: Text('Add'),
+                onPressed: isAllowAdd()
+                    ? () {
+                        firestoreUtils.addNewMember(memberName);
+                        Navigator.of(context).pop();
+                      }
+                    : null,
+              ),
+              TextButton(
+                child: Text('Cancel'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        });
       },
     );
   }
@@ -689,13 +744,14 @@ class _MyHomePageState extends State<MyHomePage> {
               suffixIcon: IconButton(
                 onPressed: allowEdit()
                     ? () {
-                        resultController.clear();
+                        resultController.text =
+                            "C1: 0-0 | C2: 0-0 | C3: 0-0 | C4: 0-0 | C5: 0-0";
                         firestoreUtils
                             .saveRoundResult(resultController.text ?? "");
                         setState(() {});
                       }
                     : null,
-                icon: Icon(Icons.clear),
+                icon: Icon(Icons.replay),
               ),
             ),
             onChanged: (text) {

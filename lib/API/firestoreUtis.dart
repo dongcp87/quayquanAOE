@@ -120,4 +120,8 @@ class FirestoreUtils {
     }
     return result;
   }
+
+  void addNewMember(String name) {
+    FirebaseFirestore.instance.collection("users").add({"name": name});
+  }
 }
