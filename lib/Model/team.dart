@@ -11,12 +11,13 @@ class Team {
     Map<String, dynamic> map = Map();
     map["name"] = name;
     map["type"] = type.index;
+    map["number"] = int.parse(documentId);
     return map;
   }
 
   factory Team.fromDocument(DocumentSnapshot doc) {
-    int type = doc.data()["type"] ?? 0;
-    String name = doc.data()["name"] ?? "";
+    int type = doc.get("type") ?? 0;
+    String name = doc.get("name") ?? "";
     return Team(name, SelectUnitType.values[type], doc.id);
   }
 }

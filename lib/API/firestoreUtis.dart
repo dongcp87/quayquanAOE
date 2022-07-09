@@ -4,9 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FirestoreUtils {
   Future<List<Team>> getTeams() async {
     List<Team> team = [];
-    final teamData = await FirebaseFirestore.instance
+    var teamData = await FirebaseFirestore.instance
         .collection("team")
-        .get(GetOptions(source: Source.server));
+        .orderBy("number")
+        .get();
+    if (teamData.docs.length != 8) {
+      teamData = await FirebaseFirestore.instance.collection("team").get();
+    }
     teamData.docs.forEach((element) {
       final t = Team.fromDocument(element);
       team.add(t);
@@ -19,11 +23,10 @@ class FirestoreUtils {
     final users = await FirebaseFirestore.instance
         .collection("users")
         .orderBy("name")
-        .get(GetOptions(source: Source.server));
+        .get();
     users.docs.forEach((element) {
-      usersName.add(element.data()["name"]);
+      usersName.add(element.get("name"));
     });
-    usersName.add("");
     return usersName;
   }
 
@@ -33,6 +36,7 @@ class FirestoreUtils {
           .collection("team")
           .doc(element.documentId)
           .set(element.toMap());
+      addNewMember(element.name);
     });
   }
 
@@ -122,6 +126,11 @@ class FirestoreUtils {
   }
 
   void addNewMember(String name) {
-    FirebaseFirestore.instance.collection("users").add({"name": name});
+    if (name.trim().length > 0) {
+      FirebaseFirestore.instance
+          .collection("users")
+          .doc(name)
+          .set({"name": name});
+    }
   }
 }

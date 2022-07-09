@@ -9,14 +9,13 @@ import 'package:aoe_gmo/Model/unit.dart';
 import 'package:aoe_gmo/Model/version.dart';
 import 'package:aoe_gmo/webjs.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:modal_progress_hud/modal_progress_hud.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toast/toast.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-import 'dart:html' as html; //ignore: avoid_web_libraries_in_flutter
 
 void main() {
   runApp(MyApp());
@@ -91,9 +90,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final resultController = TextEditingController();
 
+  bool isClickRandom = false;
+
   void getData() async {
-    usersName = await firestoreUtils.getUsers();
     team = await firestoreUtils.getTeams();
+
     responseString = await firestoreUtils.getResult();
     checkAccessToken = await firestoreUtils.checkAccessToken();
     textController.text = await getAccessToken();
@@ -101,11 +102,22 @@ class _MyHomePageState extends State<MyHomePage> {
     resultController.text = await firestoreUtils.getRoundResult();
     loadResult();
     setState(() {
+      isClickRandom = false;
       isLoading = false;
     });
   }
 
+  void getUsers() async {
+    usersName = await firestoreUtils.getUsers();
+  }
+
   void getRandom() async {
+    isClickRandom = true;
+    team.forEach((element) {
+      usersName.add(element.name);
+    });
+    usersName = usersName.toSet().toList();
+    FocusManager.instance.primaryFocus?.unfocus();
     isRequestRandomOrg = true;
     var response = await RandomOrgAPI().getRandom();
     if (response.statusCode == 200) {
@@ -153,19 +165,25 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void initState() {
-    super.initState();
+    getUsers();
     getData();
     allUnit = Unit.all();
     resultStream =
         FirebaseFirestore.instance.collection("result").doc("data").snapshots();
     resultStream.listen((event) {
-      getData();
+      if (isClickRandom) {
+        isClickRandom = false;
+      } else {
+        getData();
+      }
     });
     settingStream =
         FirebaseFirestore.instance.collection("setting").snapshots();
     settingStream.listen((event) {
       getData();
     });
+
+    super.initState();
   }
 
   @override
@@ -208,16 +226,21 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: ModalProgressHUD(
         inAsyncCall: isLoading,
-        child: mainView(),
+        child: GestureDetector(
+          onTap: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          child: mainView(),
+        ),
       ),
-      floatingActionButton: allowEdit()
-          ? FloatingActionButton(
-              onPressed: () {
-                addNewMemberDialog();
-              },
-              child: Icon(Icons.person_add_alt_1_rounded),
-            )
-          : null, // This trailing comma makes auto-formatting nicer for build methods.
+      // floatingActionButton: allowEdit()
+      //     ? FloatingActionButton(
+      //         onPressed: () {
+      //           addNewMemberDialog();
+      //         },
+      //         child: Icon(Icons.person_add_alt_1_rounded),
+      //       )
+      //     : null, // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 
@@ -429,7 +452,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         .capture(delay: Duration(milliseconds: 0))
                         .then((Uint8List image) async {
                       // saveAs(image, "QuayQuan#$serialNumber");
-                      copyImgToClipBoard(image);
+                      if (kIsWeb) {
+                        copyImgToClipBoard(image);
+                      }
                       Toast.show(
                         "Đã copy vào clipboard",
                         context,
@@ -493,26 +518,68 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: align,
           children: [
-            DropdownButton<String>(
-              value: team[index].name ?? "",
-              icon: Icon(Icons.more_vert_sharp),
-              iconSize: 16,
-              elevation: 8,
-              style: TextStyle(color: Colors.blueAccent),
-              onChanged: allowEdit()
-                  ? (String newValue) {
-                      setState(() {
-                        team[index].name = newValue;
-                        resetData();
-                      });
-                    }
-                  : null,
-              items: usersName.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+            Container(
+              width: 100,
+              child: Autocomplete(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  team[index].name = textEditingValue.text;
+                  if (textEditingValue.text == '') {
+                    return Iterable<String>.empty();
+                  }
+                  var list = usersName.where((String option) {
+                    return option
+                        .toLowerCase()
+                        .startsWith(textEditingValue.text.toLowerCase());
+                  });
+                  list = list.toSet().toList();
+                  return list;
+                },
+                onSelected: (String selection) {
+                  team[index].name = selection;
+                },
+                fieldViewBuilder: (BuildContext context,
+                    TextEditingController fieldTextEditingController,
+                    FocusNode fieldFocusNode,
+                    VoidCallback onFieldSubmitted) {
+                  fieldTextEditingController..text = team[index].name;
+                  return TextField(
+                    controller: fieldTextEditingController,
+                    focusNode: fieldFocusNode,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    // enabled: allowEdit(),
+                  );
+                },
+                optionsViewBuilder: (BuildContext context,
+                    AutocompleteOnSelected<String> onSelected,
+                    Iterable<String> options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                        child: Container(
+                      width: 200,
+                      height: 300,
+                      color: Colors.blue,
+                      child: ListView.builder(
+                        padding: EdgeInsets.all(10.0),
+                        itemCount: options.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final option = options.elementAt(index);
+
+                          return ListTile(
+                            title: Text(
+                              option,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            onTap: () {
+                              onSelected(option);
+                            },
+                          );
+                        },
+                      ),
+                    )),
+                  );
+                },
+              ),
             ),
             SizedBox(width: 10),
             DropdownButton<String>(
@@ -657,6 +724,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       color: nameColor,
                       child: Text(
                         name,
+                        maxLines: 1,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -689,22 +757,22 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void saveAs(List<int> bytes, String fileName) {
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.document.createElement('a') as html.AnchorElement
-      ..href = url
-      ..style.display = 'none'
-      ..download = '$fileName.png';
-    html.document.body.children.add(anchor);
+  // void saveAs(List<int> bytes, String fileName) {
+  //   final blob = html.Blob([bytes]);
+  //   final url = html.Url.createObjectUrlFromBlob(blob);
+  //   final anchor = html.document.createElement('a') as html.AnchorElement
+  //     ..href = url
+  //     ..style.display = 'none'
+  //     ..download = '$fileName.png';
+  //   html.document.body.children.add(anchor);
 
-    // download
-    anchor.click();
+  //   // download
+  //   anchor.click();
 
-    // cleanup
-    html.document.body.children.remove(anchor);
-    html.Url.revokeObjectUrl(url);
-  }
+  //   // cleanup
+  //   html.document.body.children.remove(anchor);
+  //   html.Url.revokeObjectUrl(url);
+  // }
 
   Widget roundResultDisplay() {
     return Row(
